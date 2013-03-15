@@ -7,7 +7,6 @@ import (
 
 type context interface {
 	paint(w, h int)
-	parent() context
 	char(ch rune)
 	key(termbox.Key)
 }
@@ -21,6 +20,10 @@ var (
 func repaint() {
 	paintCond.Signal()
 }
+
+var (
+	backHint = []rune("To go back, push Q.")
+)
 
 func painter() {
 	var (
