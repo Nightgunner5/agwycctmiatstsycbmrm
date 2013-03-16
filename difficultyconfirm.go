@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/Nightgunner5/agwycctmiatstsycbmrm/state"
 	"github.com/Nightgunner5/agwycctmiatstsycbmrm/util"
 	"github.com/nsf/termbox-go"
 )
@@ -43,6 +44,8 @@ var (
 			gimmick:       util.SplitForUI("slave labor required"),
 		},
 	}
+
+	difficultyStartHint = util.SplitForUI("Push B to begin.")
 )
 
 type difficultyConfirm struct {
@@ -93,12 +96,32 @@ func (d *difficultyConfirm) paint(w, h int) {
 
 		x += len(word) + 1
 	}
+
+	x, y = 16, y+2
+	for _, word := range difficultyStartHint {
+		if x+len(word)+1 >= w {
+			x, y = 16, y+1
+		}
+
+		for i, r := range word {
+			termbox.SetCell(x+i, y, r, termbox.ColorDefault, termbox.ColorDefault)
+		}
+
+		x += len(word) + 1
+	}
 }
 
 func (d *difficultyConfirm) char(r rune) {
 	switch r {
 	case 'q', 'Q':
 		paintCtx = d.parent
+		repaint()
+	case 'b', 'B':
+		game := &gameUI{d.parent, &state.State{
+			Cash: difficultyTuning[d.difficulty].startingmoney,
+		}}
+		paintCtx = game
+		go game.process()
 		repaint()
 	}
 }

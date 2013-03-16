@@ -14,11 +14,14 @@ type context interface {
 var (
 	paintCtx  context = new(mainMenu)
 	paintLock sync.Mutex
-	paintCond = sync.NewCond(&paintLock)
+	paintCond = make(chan struct{}, 1)
 )
 
 func repaint() {
-	paintCond.Signal()
+	select {
+	case paintCond <- struct{}{}:
+	default:
+	}
 }
 
 var (
@@ -31,8 +34,8 @@ func painter() {
 		exitHint  = []rune("To exit, push ESC twice.")
 	)
 
-	paintLock.Lock()
 	for {
+		paintLock.Lock()
 		termbox.Clear(termbox.ColorDefault, termbox.ColorDefault)
 		w, h := termbox.Size()
 		_ = h
@@ -63,7 +66,8 @@ func painter() {
 
 		termbox.Flush()
 
-		// This releases the lock before waiting and reobtains it after.
-		paintCond.Wait()
+		paintLock.Unlock()
+
+		<-paintCond
 	}
 }
