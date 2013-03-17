@@ -2,9 +2,11 @@ package state
 
 import (
 	"sync"
+	"time"
 )
 
 type State struct {
+	DayLength   time.Duration
 	Day         uint64
 	Cash        uint64
 	Score       uint64
@@ -12,6 +14,21 @@ type State struct {
 	Workers     []*Worker
 	Inventory   map[Item]uint
 	sync.Mutex
+}
+
+func (s *State) Init() {
+	s.Lock()
+
+	s.Workers = append(s.Workers, &Worker{s})
+	s.Workers = append(s.Workers, &Worker{s})
+	s.Workers = append(s.Workers, &Worker{s})
+	s.Workers = append(s.Workers, &Worker{s})
+	s.Workers = append(s.Workers, &Worker{s})
+	s.Workers = append(s.Workers, &Worker{s})
+
+	s.Inventory = make(map[Item]uint)
+
+	s.Unlock()
 }
 
 func (s *State) GetDay() (date uint64) {

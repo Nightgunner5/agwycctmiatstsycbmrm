@@ -5,6 +5,7 @@ import (
 	"github.com/Nightgunner5/agwycctmiatstsycbmrm/state"
 	"github.com/Nightgunner5/agwycctmiatstsycbmrm/util"
 	"github.com/nsf/termbox-go"
+	"time"
 )
 
 var (
@@ -18,30 +19,37 @@ var (
 
 	difficultyStartingMoney = []rune("Starting Cash")
 	difficultyGimmick       = []rune("Gimmick")
+	difficultyDayLength     = []rune("Day Length")
 
 	difficultyTuning = []struct {
 		startingmoney uint64
 		gimmick       [][]rune
+		dayLength     time.Duration
 	}{
 		{
 			startingmoney: 1000000000,
 			gimmick:       util.SplitForUI("grandpa-friendly"),
+			dayLength:     time.Second * 60,
 		},
 		{
 			startingmoney: 10000000,
 			gimmick:       util.SplitForUI("boring"),
+			dayLength:     time.Second * 10,
 		},
 		{
 			startingmoney: 1000000,
 			gimmick:       util.SplitForUI("the game insults you"),
+			dayLength:     time.Second * 7,
 		},
 		{
 			startingmoney: 100000,
 			gimmick:       util.SplitForUI("everything is on fire"),
+			dayLength:     time.Second * 5,
 		},
 		{
 			startingmoney: 250,
 			gimmick:       util.SplitForUI("slave labor required"),
+			dayLength:     time.Second * 2,
 		},
 	}
 
@@ -97,6 +105,14 @@ func (d *difficultyConfirm) paint(w, h int) {
 		x += len(word) + 1
 	}
 
+	x, y = 16, y+1
+	for i, r := range difficultyDayLength {
+		termbox.SetCell(x-len(difficultyDayLength)+i-1, y, r, termbox.ColorDefault|termbox.AttrBold, termbox.ColorDefault)
+	}
+	for i, r := range []rune(fmt.Sprintf("%d seconds", int(tuning.dayLength.Seconds()))) {
+		termbox.SetCell(x+i, y, r, termbox.ColorDefault, termbox.ColorDefault)
+	}
+
 	x, y = 16, y+2
 	for _, word := range difficultyStartHint {
 		if x+len(word)+1 >= w {
@@ -117,9 +133,13 @@ func (d *difficultyConfirm) char(r rune) {
 		paintCtx = d.parent
 		repaint()
 	case 'b', 'B':
+		tuning := difficultyTuning[d.difficulty]
 		game := &gameUI{d.parent, &state.State{
-			Cash: difficultyTuning[d.difficulty].startingmoney,
+			DayLength: tuning.dayLength,
+			Cash:      tuning.startingmoney,
 		}}
+		game.state.Init()
+
 		paintCtx = game
 		go game.process()
 		repaint()

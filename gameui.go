@@ -10,6 +10,18 @@ var (
 	gameDay   = []rune("Day")
 	gameScore = []rune("Score")
 	gameCash  = []rune("Cash")
+
+	gameWidth = func(l ...int) int {
+		w := -1
+
+		for _, i := range l {
+			if i > w {
+				w = i
+			}
+		}
+
+		return w + 22
+	}(len(gameDay), len(gameScore), len(gameCash))
 )
 
 type gameUI struct {
@@ -18,6 +30,12 @@ type gameUI struct {
 }
 
 func (g *gameUI) paint(w, h int) {
+	for x := w - gameWidth; x < w; x++ {
+		for y := 1; y < 5; y++ {
+			termbox.SetCell(x, y, ' ', termbox.ColorDefault, termbox.ColorDefault)
+		}
+	}
+
 	day := g.state.GetDay()
 	for i := 0; i < 20; i++ {
 		if day == 0 && i != 0 {
@@ -87,8 +105,9 @@ func (g *gameUI) process() {
 
 func (g *gameUI) advanceDate() {
 	for {
-		time.Sleep(time.Second * 5)
 		g.state.AdvanceDay()
 		repaint()
+
+		time.Sleep(g.state.DayLength)
 	}
 }
