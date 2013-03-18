@@ -127,7 +127,8 @@ func (s *State) ChangeItemCount(i Item, delta int) bool {
 	s.Lock()
 	defer s.Unlock()
 
-	if delta < 0 && s.Inventory[i] < uint(-delta) {
+	current := s.Inventory[i]
+	if delta < 0 && current < uint(-delta) {
 		return false
 	}
 
@@ -135,7 +136,11 @@ func (s *State) ChangeItemCount(i Item, delta int) bool {
 		s.Inventory = make(map[Item]uint)
 	}
 
-	s.Inventory[i] = uint(int(s.Inventory[i]) + delta)
+	if delta < 0 && current == uint(-delta) {
+		delete(s.Inventory, i)
+	} else {
+		s.Inventory[i] = uint(int(s.Inventory[i]) + delta)
+	}
 
 	return true
 }

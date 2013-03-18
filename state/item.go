@@ -5,6 +5,10 @@ type Item struct {
 	Name string
 
 	Category ItemCategory
+
+	Components *[]Item
+
+	Quality uint16
 }
 
 type ItemCategory uint32
