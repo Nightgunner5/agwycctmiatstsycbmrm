@@ -6,6 +6,10 @@ import (
 	"time"
 )
 
+func init() {
+	rand.Seed(time.Now().UnixNano())
+}
+
 type State struct {
 	DayLength   time.Duration
 	Day         uint64
