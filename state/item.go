@@ -298,3 +298,55 @@ func (c ItemCategory) String() (s string) {
 
 	return s
 }
+
+type ItemCategoryCategory uint8
+
+const (
+	CProduct ItemCategoryCategory = iota
+	CRaw
+	CMaterial
+	CThread
+	CCloth
+	CDecoration
+	ItemCategoryCount
+)
+
+func (c ItemCategory) Category() ItemCategoryCategory {
+	if c&0x000c0000 == Product {
+		return CProduct
+	}
+
+	switch c & 0x000fff00 {
+	case Scrap, Ore, Nugget, Log:
+		return CRaw
+
+	case Cloth:
+		return CCloth
+
+	case Thread:
+		return CThread
+	}
+
+	switch c & 0xf0000000 {
+	case Metal, Stone, Wood:
+		return CMaterial
+
+	case Organic:
+		switch c & 0xfff00000 {
+		case Feather, Scale, Shell, Bone:
+			return CDecoration
+
+		case Skin, Leather, Fur:
+			return CCloth
+
+		case Wool:
+			return CRaw
+		}
+
+	case Gem:
+		return CDecoration
+	}
+
+	// Invalid material
+	return CProduct
+}

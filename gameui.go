@@ -5,6 +5,7 @@ import (
 	"github.com/nsf/termbox-go"
 	"sort"
 	"time"
+	"unsafe"
 )
 
 var (
@@ -26,35 +27,67 @@ var (
 	gameHeight = 3 + 1
 )
 
+type sortItems []*state.Item
+
+func (s sortItems) Len() int {
+	return len(s)
+}
+
+func (s sortItems) Less(i, j int) bool {
+	si, sj := s[i], s[j]
+
+	if ci, cj := si.Category.Category(), sj.Category.Category(); ci != cj {
+		return ci < cj
+	}
+
+	if si.Category != sj.Category {
+		return si.Category < sj.Category
+	}
+
+	if si.Name != sj.Name {
+		return si.Name < sj.Name
+	}
+
+	return uintptr(unsafe.Pointer(si.Components)) < uintptr(unsafe.Pointer(sj.Components))
+}
+
+func (s sortItems) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
+
 type gameUI struct {
 	parent context
 	state  *state.State
 
 	inventoryScroll int
-	lastItemCount   int
+	inventoryCache  sortItems
 }
 
 func (g *gameUI) paint(w, h int) {
 	{
-		var items []string
+		var items sortItems
 		g.state.Lock()
 		for i, count := range g.state.Inventory {
-			desc := i.String()
+			item := i
 			for i := uint(0); i < count; i++ {
-				items = append(items, desc)
+				items = append(items, &item)
 			}
 		}
 		g.state.Unlock()
 
-		sort.Strings(items)
+		sort.Sort(items)
 
-		g.lastItemCount = len(items)
+		g.inventoryCache = items
 
 		y := gameHeight + 1 - g.inventoryScroll
-		for _, desc := range items {
-			if y > 1 {
-				for x, r := range []rune(desc) {
-					termbox.SetCell(x+w*2/3, y, r, termbox.ColorDefault, termbox.ColorDefault)
+		for _, i := range items {
+			if y > 0 {
+				for x, r := range []rune(i.String()) {
+					if y == gameHeight+1 {
+						termbox.SetCell(x+w*3/5, y, r, termbox.ColorDefault|termbox.AttrBold, termbox.ColorDefault)
+					} else {
+						termbox.SetCell(x+w*3/5, y, r, termbox.ColorDefault, termbox.ColorDefault)
+					}
 				}
 			}
 			y++
@@ -124,10 +157,11 @@ func (g *gameUI) char(r rune) {}
 func (g *gameUI) key(k termbox.Key) {
 	switch k {
 	case termbox.KeyArrowDown:
-		if g.inventoryScroll < g.lastItemCount-1 {
+		if g.inventoryScroll < len(g.inventoryCache)-1 {
 			g.inventoryScroll++
 			repaint()
 		}
+
 	case termbox.KeyArrowUp:
 		if g.inventoryScroll > 0 {
 			g.inventoryScroll--
