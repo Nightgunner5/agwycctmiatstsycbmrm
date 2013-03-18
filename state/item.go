@@ -4,9 +4,6 @@ type Item struct {
 	// Legendary-quality items have their own names.
 	Name string
 
-	// Materials cannot be sold by the player.
-	Material bool
-
 	Category ItemCategory
 }
 
@@ -19,6 +16,7 @@ const (
 	Wood
 	Organic
 
+	// (Roughly) in order of value
 	_ ItemCategory = Metal + iota<<20
 	Copper
 	Tin
@@ -35,8 +33,20 @@ const (
 
 	_ ItemCategory = Stone + iota<<20
 
+	// (Roughly) in order of value
 	_ ItemCategory = Wood + iota<<20
+	Birch
+	Pine
+	Maple
+	Walnut
+	Larch
+	Oak
+	Cedar
+	Teak
+	Mahogany
+	Truffula
 
+	// Not in any specific order
 	_ ItemCategory = Organic + iota<<20
 	Feather
 	Skin
@@ -47,7 +57,11 @@ const (
 	Bone
 	Wool
 
-	_ ItemCategory = iota << 8
+	Material ItemCategory = iota << 18
+	Product
+
+	// Not in any specific order
+	_ ItemCategory = Material + iota<<8
 	Scrap
 	Ore
 	Nugget
@@ -56,6 +70,11 @@ const (
 	Sheet
 	Thread
 	Cloth
+	Log
+	Plank
+
+	// Not in any specific order
+	_ ItemCategory = Product + iota<<8
 
 	// Sizes
 	Miniscule ItemCategory = 0
@@ -90,12 +109,16 @@ func (c ItemCategory) String() string {
 		s = "thread"
 	case Cloth:
 		s = "cloth"
+	case Log:
+		s = "log"
+	case Plank:
+		s = "plank"
 	default:
 		return "ERROR"
 	}
 
 	switch c & 0xfff00000 {
-	case 0:
+	case Material, Product:
 		// no prefix
 	case Metal:
 		s = "metal " + s
