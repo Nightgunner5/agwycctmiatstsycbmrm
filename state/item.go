@@ -152,6 +152,26 @@ func (c ItemCategory) String() string {
 
 	case Wood:
 		s = "wooden " + s
+	case Birch:
+		s = "birch " + s
+	case Pine:
+		s = "pine " + s
+	case Maple:
+		s = "maple " + s
+	case Walnut:
+		s = "walnut " + s
+	case Larch:
+		s = "larch " + s
+	case Oak:
+		s = "oak " + s
+	case Cedar:
+		s = "cedar " + s
+	case Teak:
+		s = "teak " + s
+	case Mahogany:
+		s = "mahogany " + s
+	case Truffula:
+		s = "truffula " + s
 
 	case Organic:
 		s = "organic " + s
