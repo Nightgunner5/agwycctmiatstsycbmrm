@@ -20,7 +20,9 @@ const (
 	Wood
 	Organic
 	Gem
+)
 
+const (
 	// (Roughly) in order of value
 	_ ItemCategory = Metal + iota<<20
 	Copper
@@ -35,9 +37,13 @@ const (
 	Platinum
 	Titanium
 	Adamantite
+)
 
+const (
 	_ ItemCategory = Stone + iota<<20
+)
 
+const (
 	// (Roughly) in order of value
 	_ ItemCategory = Wood + iota<<20
 	Birch
@@ -50,7 +56,9 @@ const (
 	Teak
 	Mahogany
 	Truffula
+)
 
+const (
 	// Not in any specific order
 	_ ItemCategory = Organic + iota<<20
 	Feather
@@ -61,7 +69,9 @@ const (
 	Shell
 	Bone
 	Wool
+)
 
+const (
 	// (Roughly) in order of value
 	_ ItemCategory = Gem + iota<<20
 	Jade
@@ -72,10 +82,14 @@ const (
 	Sapphire
 	Ruby
 	Diamond
+)
 
+const (
 	Material ItemCategory = iota << 18
 	Product
+)
 
+const (
 	// Not in any specific order
 	_ ItemCategory = Material + iota<<8
 	Scrap
@@ -89,10 +103,9 @@ const (
 	Log
 	Plank
 	Cluster
+)
 
-	// Not in any specific order
-	_ ItemCategory = Product + iota<<8
-
+const (
 	// Sizes
 	Miniscule ItemCategory = 0
 	Tiny      ItemCategory = 12
@@ -104,37 +117,52 @@ const (
 	Gigantic  ItemCategory = 250
 )
 
+const (
+	// Not in any specific order
+	_ ItemCategory = Product + iota
+)
+
 func (c ItemCategory) String() (s string) {
-	switch c & 0x000fff00 {
+	switch c & 0x000c0000 {
 	case Material:
-		defer func() {
-			s = s[:len(s)-1]
-		}()
-	case Scrap:
-		s = "scrap"
-	case Ore:
-		s = "ore"
-	case Nugget:
-		s = "nugget"
-	case Ingot:
-		s = "ingot"
-	case Block:
-		s = "block"
-	case Sheet:
-		s = "sheet"
-	case Thread:
-		s = "thread"
-	case Cloth:
-		s = "cloth"
-	case Log:
-		s = "log"
-	case Plank:
-		s = "plank"
-	case Cluster:
-		s = "cluster"
+		switch c & 0x000fff00 {
+		case Material:
+			defer func() {
+				s = s[:len(s)-1]
+			}()
+		case Scrap:
+			s = "scrap"
+		case Ore:
+			s = "ore"
+		case Nugget:
+			s = "nugget"
+		case Ingot:
+			s = "ingot"
+		case Block:
+			s = "block"
+		case Sheet:
+			s = "sheet"
+		case Thread:
+			s = "thread"
+		case Cloth:
+			s = "cloth"
+		case Log:
+			s = "log"
+		case Plank:
+			s = "plank"
+		case Cluster:
+			s = "cluster"
+		default:
+			return "ERROR"
+		}
 
 	case Product:
-		s = "widget"
+		switch {
+		case Product:
+			s = "widget"
+		default:
+			return "ERROR"
+		}
 
 	default:
 		return "ERROR"
@@ -143,6 +171,7 @@ func (c ItemCategory) String() (s string) {
 	switch c & 0xfff00000 {
 	case 0:
 		// TODO: error?
+
 	case Metal:
 		s = "metal " + s
 	case Copper:
@@ -233,23 +262,25 @@ func (c ItemCategory) String() (s string) {
 		s = "diamond " + s
 	}
 
-	switch size := c & 0x000000ff; {
-	case size >= Gigantic:
-		s = "gigantic " + s
-	case size >= Huge:
-		s = "huge " + s
-	case size >= Large:
-		s = "large " + s
-	case size >= Big:
-		s = "big " + s
-	case size >= Medium:
-		s = "medium " + s
-	case size >= Small:
-		s = "small " + s
-	case size >= Tiny:
-		s = "tiny " + s
-	case size >= Miniscule:
-		s = "miniscule " + s
+	if c&0x000c0000 == Material {
+		switch size := c & 0x000000ff; {
+		case size >= Gigantic:
+			s = "gigantic " + s
+		case size >= Huge:
+			s = "huge " + s
+		case size >= Large:
+			s = "large " + s
+		case size >= Big:
+			s = "big " + s
+		case size >= Medium:
+			s = "medium " + s
+		case size >= Small:
+			s = "small " + s
+		case size >= Tiny:
+			s = "tiny " + s
+		case size >= Miniscule:
+			s = "miniscule " + s
+		}
 	}
 
 	return s
