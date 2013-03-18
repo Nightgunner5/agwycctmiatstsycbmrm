@@ -15,6 +15,7 @@ const (
 	Stone
 	Wood
 	Organic
+	Gem
 
 	// (Roughly) in order of value
 	_ ItemCategory = Metal + iota<<20
@@ -57,6 +58,17 @@ const (
 	Bone
 	Wool
 
+	// (Roughly) in order of value
+	_ ItemCategory = Gem + iota<<20
+	Jade
+	Jasper
+	Lapis
+	Amethyst
+	Emerald
+	Sapphire
+	Ruby
+	Diamond
+
 	Material ItemCategory = iota << 18
 	Product
 
@@ -72,6 +84,7 @@ const (
 	Cloth
 	Log
 	Plank
+	Cluster
 
 	// Not in any specific order
 	_ ItemCategory = Product + iota<<8
@@ -87,12 +100,12 @@ const (
 	Gigantic  ItemCategory = 250
 )
 
-func (c ItemCategory) String() string {
-	var s string
-
+func (c ItemCategory) String() (s string) {
 	switch c & 0x000fff00 {
-	case 0:
-		s = "widget"
+	case Material:
+		defer func() {
+			s = s[:len(s)-1]
+		}()
 	case Scrap:
 		s = "scrap"
 	case Ore:
@@ -113,13 +126,19 @@ func (c ItemCategory) String() string {
 		s = "log"
 	case Plank:
 		s = "plank"
+	case Cluster:
+		s = "cluster"
+
+	case Product:
+		s = "widget"
+
 	default:
 		return "ERROR"
 	}
 
 	switch c & 0xfff00000 {
-	case Material, Product:
-		// no prefix
+	case 0:
+		// TODO: error?
 	case Metal:
 		s = "metal " + s
 	case Copper:
@@ -178,7 +197,7 @@ func (c ItemCategory) String() string {
 	case Feather:
 		s = "feather " + s
 	case Skin:
-		s = "skin " + s
+		s = "hide " + s
 	case Leather:
 		s = "leather " + s
 	case Fur:
@@ -189,6 +208,25 @@ func (c ItemCategory) String() string {
 		s = "shell " + s
 	case Bone:
 		s = "bone " + s
+
+	case Gem:
+		s = "jewel " + s
+	case Jade:
+		s = "jade " + s
+	case Jasper:
+		s = "jasper " + s
+	case Lapis:
+		s = "lapis lazuli " + s
+	case Amethyst:
+		s = "amethyst " + s
+	case Emerald:
+		s = "emerald " + s
+	case Sapphire:
+		s = "sapphire " + s
+	case Ruby:
+		s = "ruby " + s
+	case Diamond:
+		s = "diamond " + s
 	}
 
 	switch size := c & 0x000000ff; {
