@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/Nightgunner5/agwycctmiatstsycbmrm/state"
 	"github.com/nsf/termbox-go"
+	"sort"
 	"time"
 )
 
@@ -22,16 +23,46 @@ var (
 
 		return w + 22
 	}(len(gameDay), len(gameScore), len(gameCash))
+	gameHeight = 3 + 1
 )
 
 type gameUI struct {
 	parent context
 	state  *state.State
+
+	inventoryScroll int
+	lastItemCount   int
 }
 
 func (g *gameUI) paint(w, h int) {
+	{
+		var items []string
+		g.state.Lock()
+		for i, count := range g.state.Inventory {
+			desc := i.String()
+			for i := uint(0); i < count; i++ {
+				items = append(items, desc)
+			}
+		}
+		g.state.Unlock()
+
+		sort.Strings(items)
+
+		g.lastItemCount = len(items)
+
+		y := gameHeight + 1 - g.inventoryScroll
+		for _, desc := range items {
+			if y > 1 {
+				for x, r := range []rune(desc) {
+					termbox.SetCell(x+w*2/3, y, r, termbox.ColorDefault, termbox.ColorDefault)
+				}
+			}
+			y++
+		}
+	}
+
 	for x := w - gameWidth; x < w; x++ {
-		for y := 1; y < 5; y++ {
+		for y := 1; y <= gameHeight; y++ {
 			termbox.SetCell(x, y, ' ', termbox.ColorDefault, termbox.ColorDefault)
 		}
 	}
@@ -90,7 +121,20 @@ func (g *gameUI) paint(w, h int) {
 
 func (g *gameUI) char(r rune) {}
 
-func (g *gameUI) key(k termbox.Key) {}
+func (g *gameUI) key(k termbox.Key) {
+	switch k {
+	case termbox.KeyArrowDown:
+		if g.inventoryScroll < g.lastItemCount-1 {
+			g.inventoryScroll++
+			repaint()
+		}
+	case termbox.KeyArrowUp:
+		if g.inventoryScroll > 0 {
+			g.inventoryScroll--
+			repaint()
+		}
+	}
+}
 
 func (g *gameUI) process() {
 	go g.advanceDate()

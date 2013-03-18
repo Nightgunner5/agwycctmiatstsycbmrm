@@ -134,10 +134,13 @@ func (d *difficultyConfirm) char(r rune) {
 		repaint()
 	case 'b', 'B':
 		tuning := difficultyTuning[d.difficulty]
-		game := &gameUI{d.parent, &state.State{
-			DayLength: tuning.dayLength,
-			Cash:      tuning.startingmoney,
-		}}
+		game := &gameUI{
+			parent: d.parent,
+			state: &state.State{
+				DayLength: tuning.dayLength,
+				Cash:      tuning.startingmoney,
+			},
+		}
 		game.state.Init()
 
 		paintCtx = game

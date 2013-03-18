@@ -4,11 +4,19 @@ type Item struct {
 	// Legendary-quality items have their own names.
 	Name string
 
-	Category ItemCategory
-
+	Category   ItemCategory
 	Components *[]Item
+	Quality    uint16
+}
 
-	Quality uint16
+func (i Item) String() string {
+	s := i.Category.String()
+
+	if i.Name != "" {
+		s = "\"" + i.Name + "\", the " + s
+	}
+
+	return s
 }
 
 type ItemCategory uint32
@@ -157,7 +165,7 @@ func (c ItemCategory) String() (s string) {
 		}
 
 	case Product:
-		switch {
+		switch c & 0x000fffff {
 		case Product:
 			s = "widget"
 		default:
@@ -170,7 +178,7 @@ func (c ItemCategory) String() (s string) {
 
 	switch c & 0xfff00000 {
 	case 0:
-		// TODO: error?
+		// no specific material
 
 	case Metal:
 		s = "metal " + s
@@ -241,6 +249,8 @@ func (c ItemCategory) String() (s string) {
 		s = "shell " + s
 	case Bone:
 		s = "bone " + s
+	case Wool:
+		s = "wool " + s
 
 	case Gem:
 		s = "jewel " + s
@@ -260,6 +270,9 @@ func (c ItemCategory) String() (s string) {
 		s = "ruby " + s
 	case Diamond:
 		s = "diamond " + s
+
+	default:
+		return "ERROR"
 	}
 
 	if c&0x000c0000 == Material {

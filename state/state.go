@@ -1,6 +1,7 @@
 package state
 
 import (
+	"math/rand"
 	"sync"
 	"time"
 )
@@ -27,8 +28,81 @@ func (s *State) Init() {
 	s.Workers = append(s.Workers, &Worker{s})
 
 	s.Inventory = make(map[Item]uint)
+	for i := 0; i < 20; i++ {
+		s.Inventory[randomStartingItem()] = uint(rand.Intn(5) + 1)
+	}
 
 	s.Unlock()
+}
+
+func randomStartingItem() (i Item) {
+	i.Category = ItemCategory(rand.Intn(int(Large-Small+9))) + Small
+
+	switch rand.Intn(4) {
+	case 0: // metal
+		if rand.Intn(3) == 0 {
+			i.Category |= Ingot
+		} else {
+			i.Category |= Ore
+		}
+
+		switch rand.Intn(5) {
+		case 0:
+			i.Category |= Copper
+		case 1:
+			i.Category |= Tin
+		case 2:
+			i.Category |= Bronze
+		case 3:
+			i.Category |= Lead
+		case 4:
+			i.Category |= Iron
+		}
+
+	case 1: // wood
+		if rand.Intn(2) == 0 {
+			i.Category |= Log
+		} else {
+			i.Category |= Plank
+		}
+
+		switch rand.Intn(4) {
+		case 0:
+			i.Category |= Birch
+		case 1:
+			i.Category |= Pine
+		case 2:
+			i.Category |= Maple
+		case 3:
+			i.Category |= Walnut
+		}
+
+	case 2: // generic craft materials
+		switch rand.Intn(3) {
+		case 0:
+			i.Category |= Feather
+		case 1:
+			i.Category |= Leather
+		case 2:
+			i.Category |= Bone
+		}
+
+	case 3: // wool and wool products
+		i.Category |= Wool
+
+		switch rand.Intn(4) {
+		case 0:
+			i.Category |= Cloth
+		case 1:
+			i.Category |= Thread
+		case 2, 3:
+			// just plain wool
+		}
+	}
+
+	i.Quality = uint16(rand.Intn(0x0300) + 0x0200)
+
+	return
 }
 
 func (s *State) GetDay() (date uint64) {
