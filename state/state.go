@@ -57,11 +57,8 @@ func (s *State) Init() {
 	s.Workers = append(s.Workers, &Worker{})
 	s.Workers = append(s.Workers, &Worker{})
 
-	for i := 0; i < 20; i++ {
-		item := randomStartingItem()
-		for j := rand.Intn(5) + 1; j > 0; j-- {
-			s.addItem(item)
-		}
+	for i := 0; i < 100; i++ {
+		s.addItem(randomStartingItem())
 	}
 
 	s.Unlock()

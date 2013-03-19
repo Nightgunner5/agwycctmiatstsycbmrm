@@ -30,76 +30,40 @@ func (t Task) complete(w *Worker, s *State) {
 	switch t {
 	case TaskCombineItems:
 		for i, ii := range w.Inventory {
-			if !ii.Category.Category().CanCombine() {
-				continue
-			}
-
-			if ii.Category&0x000000ff >= Gigantic {
-				s.addItem(ii)
-				w.Inventory = append(w.Inventory[:i], w.Inventory[i+1:]...)
-				return
-			}
-
-			ci := ii.Category & 0xffffff00
-			si := ci&0x000fff00 == Scrap
-			if si {
-				ci &= 0xfff00000
-			}
-
-			for j, ij := range w.Inventory[i+1:] {
-				cj := ij.Category & 0xffffff00
-				sj := cj&0x000fff00 == Scrap
-				if sj {
-					cj &= 0xfff00000
-				}
-
-				if si && sj {
+			for j, ij := range w.Inventory {
+				if j <= i || !ii.Category.CanCombine(ij.Category) {
 					continue
 				}
 
-				if ci == cj || (si && ci == cj&0xfff00000) || (sj && ci&0xfff00000 == cj) {
+				ii = ii.Clone()
+				ij = ii.Combine(ij.Clone())
 
-					sizeHave := ii.Category & 0x000000ff
-					sizeTaken := 0xff - sizeHave
-
-					if sizeTaken > ij.Category&0x000000ff {
-						sizeTaken = ij.Category & 0x000000ff
-					}
-
-					if ij.Category&0x000000ff == sizeTaken {
-						w.Inventory = append(w.Inventory[:j], w.Inventory[j+1:]...)
-					} else {
-						ij = new(Item)
-						*ij = *w.Inventory[j]
-						w.Inventory[j] = ij
-
-						ij.Category = ij.Category&0xffffff00 | (ij.Category&0x000000ff - sizeTaken)
-					}
-
-					ii = new(Item)
-					*ii = *w.Inventory[i]
-					w.Inventory[i] = ii
-
-					if si {
-						ii.Category = ij.Category&0xffffff00 | (sizeHave + sizeTaken)
-					} else {
-						ii.Category = ii.Category&0xffffff00 | (sizeHave + sizeTaken)
-					}
-
-					// TODO: lose some quality from stitching two things together
-					ii.Quality = uint16(uint32(ii.Quality)*uint32(sizeHave)+uint32(ij.Quality)*uint32(sizeTaken)) >> 8
-
-					s.incrementScore(uint64(ii.Quality))
-
-					if sizeHave+sizeTaken >= Gigantic {
-						s.addItem(ii)
-						w.Inventory = append(w.Inventory[:i], w.Inventory[i+1:]...)
-					}
-
-					return
+				if ij == nil {
+					w.Inventory = append(w.Inventory[:j], w.Inventory[j+1:]...)
+				} else {
+					w.Inventory[j] = ij
 				}
+
+				w.Inventory[i] = ii
+
+				s.incrementScore(uint64(ii.Quality)>>4 + 1)
+
+				// TODO: log task success
+
+				for _, item := range w.Inventory[:i] {
+					s.addItem(item)
+				}
+				w.Inventory = w.Inventory[i:]
+
+				return
 			}
 		}
+
+		// give all items back to the supply pile
+		for _, item := range w.Inventory {
+			s.addItem(item)
+		}
+		w.Inventory = nil
 
 		// TODO: log task failure
 		w.Task = TaskNone

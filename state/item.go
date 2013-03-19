@@ -9,7 +9,37 @@ type Item struct {
 	Quality    uint16
 }
 
-func (i Item) String() string {
+func (i *Item) Clone() *Item {
+	clone := *i
+	return &clone
+}
+
+func (i *Item) Combine(other *Item) *Item {
+	if !i.Category.CanCombine(other.Category) {
+		panic("invalid Combine")
+	}
+
+	if i.Category&0x000fff00 == Scrap {
+		i.Category = i.Category&0xfff000ff | other.Category&0x000fff00
+	}
+
+	s1 := i.Category & 0x000000ff
+	s2 := other.Category & 0x000000ff
+
+	if s1+s2 <= 0xfe {
+		i.Category = i.Category&0xffffff00 | (s1 + s2 + 1)
+		// TODO: adjust quality
+		return nil
+	}
+
+	i.Category = i.Category | 0xff
+	// TODO: adjust quality
+	other.Category = other.Category&0xfff00000 | Scrap | (s1 + s2 - 0xfe)
+	// TODO: adjust quality
+	return other
+}
+
+func (i *Item) String() string {
 	s := i.Category.String()
 
 	if i.Name != "" {
@@ -297,6 +327,27 @@ func (c ItemCategory) String() (s string) {
 	}
 
 	return s
+}
+
+func (c ItemCategory) CanCombine(other ItemCategory) bool {
+	if !c.Category().CanCombine() {
+		return false
+	}
+
+	if c&0x000000ff == 0xff || other&0x000000ff == 0xff {
+		// Item is already max size
+		return false
+	}
+
+	if c&0x000fff00 == Scrap {
+		return other&0x000fff00 != Scrap && c&0xfff00000 == other&0xfff00000
+	}
+
+	if other&0x000fff00 == Scrap {
+		return c&0xfff00000 == other&0xfff00000
+	}
+
+	return c&0xffffff00 == other&0xffffff00
 }
 
 type ItemCategoryCategory uint8
