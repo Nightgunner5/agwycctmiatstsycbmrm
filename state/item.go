@@ -311,6 +311,14 @@ const (
 	ItemCategoryCount
 )
 
+func (c ItemCategoryCategory) CanCombine() bool {
+	switch c {
+	case CProduct, CRaw, CDecoration:
+		return false
+	}
+	return true
+}
+
 func (c ItemCategory) Category() ItemCategoryCategory {
 	if c&0x000c0000 == Product {
 		return CProduct

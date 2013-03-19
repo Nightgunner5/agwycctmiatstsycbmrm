@@ -1,11 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"github.com/Nightgunner5/agwycctmiatstsycbmrm/state"
 	"github.com/nsf/termbox-go"
-	"sort"
 	"time"
-	"unsafe"
 )
 
 var (
@@ -27,77 +26,69 @@ var (
 	gameHeight = 3 + 1
 )
 
-type sortItems []*state.Item
-
-func (s sortItems) Len() int {
-	return len(s)
-}
-
-func (s sortItems) Less(i, j int) bool {
-	si, sj := s[i], s[j]
-
-	if ci, cj := si.Category.Category(), sj.Category.Category(); ci != cj {
-		return ci < cj
-	}
-
-	if si.Category != sj.Category {
-		return si.Category < sj.Category
-	}
-
-	if si.Name != sj.Name {
-		return si.Name < sj.Name
-	}
-
-	return uintptr(unsafe.Pointer(si.Components)) < uintptr(unsafe.Pointer(sj.Components))
-}
-
-func (s sortItems) Swap(i, j int) {
-	s[i], s[j] = s[j], s[i]
-}
-
 type gameUI struct {
 	parent context
 	state  *state.State
 
+	scoreInterp uint64
+
+	currentWorker   int
 	inventoryScroll int
-	inventoryCache  sortItems
+	selectedItem    *state.Item
 }
 
 func (g *gameUI) paint(w, h int) {
-	{
-		var items sortItems
-		g.state.Lock()
-		for i, count := range g.state.Inventory {
-			item := i
-			for i := uint(0); i < count; i++ {
-				items = append(items, &item)
-			}
-		}
-		g.state.Unlock()
+	g.state.Lock()
+	for i, r := range []rune(fmt.Sprintf("Worker %d / %d", g.currentWorker+1, len(g.state.Workers))) {
+		termbox.SetCell(i, 1, r, termbox.ColorDefault|termbox.AttrBold, termbox.ColorDefault)
+	}
 
-		sort.Sort(items)
+	worker := g.state.Workers[g.currentWorker]
 
-		g.inventoryCache = items
+	y := 3
 
-		y := gameHeight + 1 - g.inventoryScroll
-		for _, i := range items {
-			if y > 0 {
-				for x, r := range []rune(i.String()) {
-					if y == gameHeight+1 {
-						termbox.SetCell(x+w*3/5, y, r, termbox.ColorDefault|termbox.AttrBold, termbox.ColorDefault)
-					} else {
-						termbox.SetCell(x+w*3/5, y, r, termbox.ColorDefault, termbox.ColorDefault)
-					}
-				}
-			}
-			y++
+	termbox.SetCell(0, y, 'G', termbox.ColorWhite|termbox.AttrBold, termbox.ColorBlack)
+	for x, r := range []rune("give item") {
+		termbox.SetCell(x+2, y, r, termbox.ColorDefault, termbox.ColorDefault)
+	}
+	y++
+
+	termbox.SetCell(0, y, 'T', termbox.ColorWhite|termbox.AttrBold, termbox.ColorBlack)
+	for x, r := range []rune(fmt.Sprintf("current task: %s (%d%%)", worker.Task, worker.Progress/((1<<16-1)/100))) {
+		termbox.SetCell(x+2, y, r, termbox.ColorDefault, termbox.ColorDefault)
+	}
+	y++
+
+	for _, i := range worker.Inventory {
+		y++
+		for x, r := range []rune(i.String()) {
+			termbox.SetCell(x, y, r, termbox.ColorDefault, termbox.ColorDefault)
 		}
 	}
 
-	for x := w - gameWidth; x < w; x++ {
-		for y := 1; y <= gameHeight; y++ {
-			termbox.SetCell(x, y, ' ', termbox.ColorDefault, termbox.ColorDefault)
+	y = gameHeight + 1 - g.inventoryScroll
+	if g.inventoryScroll < len(g.state.Inventory) {
+		g.selectedItem = g.state.Inventory[g.inventoryScroll]
+	} else {
+		g.selectedItem = nil
+	}
+	for _, i := range g.state.Inventory {
+		if y > 0 {
+			for x, r := range []rune(i.String()) {
+				if y == gameHeight+1 {
+					termbox.SetCell(x+w*3/5, y, r, termbox.ColorDefault|termbox.AttrBold, termbox.ColorDefault)
+				} else {
+					termbox.SetCell(x+w*3/5, y, r, termbox.ColorDefault, termbox.ColorDefault)
+				}
+			}
 		}
+		y++
+	}
+
+	g.state.Unlock()
+
+	for i := 1; i < gameHeight; i++ {
+		termbox.SetCell(w-21, i, ' ', termbox.ColorDefault, termbox.ColorDefault)
 	}
 
 	day := g.state.GetDay()
@@ -114,14 +105,7 @@ func (g *gameUI) paint(w, h int) {
 		termbox.SetCell(w-21-len(gameDay)+i, 1, r, termbox.ColorDefault|termbox.AttrBold, termbox.ColorDefault)
 	}
 
-	score, shouldRepaint := g.state.GetInterpolatedScore()
-
-	if shouldRepaint {
-		go func() {
-			time.Sleep(time.Second / 10)
-			repaint()
-		}()
-	}
+	score := g.interpScore()
 
 	for i := 0; i < 20; i++ {
 		if score == 0 && i != 0 {
@@ -152,21 +136,64 @@ func (g *gameUI) paint(w, h int) {
 	}
 }
 
-func (g *gameUI) char(r rune) {}
+func (g *gameUI) char(r rune) {
+	switch r {
+	case 'g', 'G':
+		if g.state.RemoveItem(g.selectedItem) {
+			g.state.Lock()
+			defer g.state.Unlock()
 
-func (g *gameUI) key(k termbox.Key) {
-	switch k {
-	case termbox.KeyArrowDown:
-		if g.inventoryScroll < len(g.inventoryCache)-1 {
-			g.inventoryScroll++
+			w := g.state.Workers[g.currentWorker]
+			w.Inventory = append(w.Inventory, g.selectedItem)
+
 			repaint()
 		}
 
+	case 't', 'T':
+		g.state.Lock()
+		defer g.state.Unlock()
+
+		w := g.state.Workers[g.currentWorker]
+		// TODO: some kind of sub-panel for choosing a task
+		w.Task++
+		if w.Task == state.NumTasks {
+			w.Task = state.TaskNone
+		}
+		w.Progress = 0
+
+		repaint()
+	}
+}
+
+func (g *gameUI) key(k termbox.Key) {
+	switch k {
 	case termbox.KeyArrowUp:
 		if g.inventoryScroll > 0 {
 			g.inventoryScroll--
 			repaint()
 		}
+
+	case termbox.KeyArrowDown:
+		g.state.Lock()
+		if g.inventoryScroll < len(g.state.Inventory)-1 {
+			g.inventoryScroll++
+			repaint()
+		}
+		g.state.Unlock()
+
+	case termbox.KeyArrowLeft:
+		if g.currentWorker > 0 {
+			g.currentWorker--
+			repaint()
+		}
+
+	case termbox.KeyArrowRight:
+		g.state.Lock()
+		if g.currentWorker < len(g.state.Workers)-1 {
+			g.currentWorker++
+			repaint()
+		}
+		g.state.Unlock()
 	}
 }
 
@@ -183,9 +210,41 @@ func (g *gameUI) process() {
 
 func (g *gameUI) advanceDate() {
 	for {
-		g.state.AdvanceDay()
+		g.state.AdvanceTime()
 		repaint()
 
-		time.Sleep(g.state.DayLength)
+		time.Sleep(g.state.DayLength / 100)
 	}
+}
+
+func (g *gameUI) interpScore() uint64 {
+	s := g.state.GetScore()
+
+	switch {
+	case g.scoreInterp > s:
+		g.scoreInterp = s
+
+		fallthrough
+	case g.scoreInterp == s:
+		return s
+
+	case g.scoreInterp >= s-10 || g.scoreInterp < 10:
+		g.scoreInterp += 1
+		return g.scoreInterp
+
+	case g.scoreInterp >= s-100 || g.scoreInterp < 100:
+		g.scoreInterp += 10
+		return g.scoreInterp
+
+	case g.scoreInterp >= s-1000 || g.scoreInterp < 1000:
+		g.scoreInterp += 100
+		return g.scoreInterp
+
+	case g.scoreInterp >= s-10000 || g.scoreInterp < 10000:
+		g.scoreInterp += 1000
+		return g.scoreInterp
+	}
+
+	g.scoreInterp += 10000
+	return g.scoreInterp
 }

@@ -2,44 +2,74 @@ package state
 
 import (
 	"math/rand"
+	"sort"
 	"sync"
 	"time"
+	"unsafe"
 )
 
 func init() {
 	rand.Seed(time.Now().UnixNano())
 }
 
+func itemLeq(i, j *Item) bool {
+	if i == j {
+		return true
+	}
+
+	if i.Category != j.Category {
+		if ci, cj := i.Category.Category(), j.Category.Category(); ci != cj {
+			return ci < cj
+		}
+
+		return i.Category < j.Category
+	}
+
+	if i.Name != j.Name {
+		return i.Name < j.Name
+	}
+
+	if i.Quality != j.Quality {
+		return i.Quality < j.Quality
+	}
+
+	return uintptr(unsafe.Pointer(i.Components)) < uintptr(unsafe.Pointer(j.Components))
+}
+
 type State struct {
 	DayLength   time.Duration
 	Day         uint64
+	DayProgress uint8
 	Cash        uint64
 	Score       uint64
-	scoreInterp uint64
 	Workers     []*Worker
-	Inventory   map[Item]uint
+	Inventory   []*Item
 	sync.Mutex
 }
 
 func (s *State) Init() {
 	s.Lock()
 
-	s.Workers = append(s.Workers, &Worker{s})
-	s.Workers = append(s.Workers, &Worker{s})
-	s.Workers = append(s.Workers, &Worker{s})
-	s.Workers = append(s.Workers, &Worker{s})
-	s.Workers = append(s.Workers, &Worker{s})
-	s.Workers = append(s.Workers, &Worker{s})
+	s.Workers = append(s.Workers, &Worker{})
+	s.Workers = append(s.Workers, &Worker{})
+	s.Workers = append(s.Workers, &Worker{})
+	s.Workers = append(s.Workers, &Worker{})
+	s.Workers = append(s.Workers, &Worker{})
+	s.Workers = append(s.Workers, &Worker{})
 
-	s.Inventory = make(map[Item]uint)
 	for i := 0; i < 20; i++ {
-		s.Inventory[randomStartingItem()] = uint(rand.Intn(5) + 1)
+		item := randomStartingItem()
+		for j := rand.Intn(5) + 1; j > 0; j-- {
+			s.addItem(item)
+		}
 	}
 
 	s.Unlock()
 }
 
-func randomStartingItem() (i Item) {
+func randomStartingItem() (i *Item) {
+	i = new(Item)
+
 	i.Category = ItemCategory(rand.Intn(int(Large-Small+9))) + Small
 
 	switch rand.Intn(4) {
@@ -50,16 +80,14 @@ func randomStartingItem() (i Item) {
 			i.Category |= Ore
 		}
 
-		switch rand.Intn(5) {
+		switch rand.Intn(4) {
 		case 0:
 			i.Category |= Copper
 		case 1:
 			i.Category |= Tin
 		case 2:
-			i.Category |= Bronze
-		case 3:
 			i.Category |= Lead
-		case 4:
+		case 3:
 			i.Category |= Iron
 		}
 
@@ -138,95 +166,84 @@ func (s *State) GetCash() (cash uint64) {
 
 func (s *State) IncrementScore(amount uint64) {
 	s.Lock()
-	s.Score += amount
+	s.incrementScore(amount)
 	s.Unlock()
 }
 
-func (s *State) GetRealScore() (score uint64) {
+func (s *State) incrementScore(amount uint64) {
+	s.Score += amount
+}
+
+func (s *State) GetScore() (score uint64) {
 	s.Lock()
 	score = s.Score
 	s.Unlock()
 	return
 }
 
-func (s *State) GetInterpolatedScore() (uint64, bool) {
-	s.Lock()
-	defer s.Unlock()
-
-	switch {
-	case s.scoreInterp > s.Score:
-		s.scoreInterp = s.Score
-
-		fallthrough
-	case s.scoreInterp == s.Score:
-		return s.Score, false
-
-	case s.scoreInterp >= s.Score-10:
-		s.scoreInterp += 1
-		return s.scoreInterp, true
-
-	case s.scoreInterp >= s.Score-100:
-		s.scoreInterp += 10
-		return s.scoreInterp, true
-
-	case s.scoreInterp >= s.Score-1000:
-		s.scoreInterp += 100
-		return s.scoreInterp, true
-
-	case s.scoreInterp >= s.Score-10000:
-		s.scoreInterp += 1000
-		return s.scoreInterp, true
-	}
-	s.scoreInterp += 10000
-	return s.scoreInterp, true
-}
-
-func (s *State) AdvanceDay() {
+func (s *State) AdvanceTime() {
 	s.Lock()
 
-	s.Day++
+	s.DayProgress++
 
 	for _, w := range s.Workers {
-		w.advanceDay(s.Day)
+		w.advanceDayPercent(s)
+	}
+
+	if s.DayProgress >= 100 {
+		s.DayProgress = 0
+		s.Day++
+
+		for _, w := range s.Workers {
+			w.advanceDay(s.Day, s)
+		}
 	}
 
 	s.Unlock()
 }
 
-func (s *State) AddItem(i Item) {
-	s.ChangeItemCount(i, 1)
-}
-
-func (s *State) RemoveItem(i Item) bool {
-	return s.ChangeItemCount(i, -1)
-}
-
-func (s *State) ChangeItemCount(i Item, delta int) bool {
+func (s *State) AddItem(i *Item) {
 	s.Lock()
-	defer s.Unlock()
+	s.addItem(i)
+	s.Unlock()
+}
 
-	current := s.Inventory[i]
-	if delta < 0 && current < uint(-delta) {
+func (s *State) indexItem(i *Item) int {
+	return sort.Search(len(s.Inventory), func(j int) bool {
+		return itemLeq(i, s.Inventory[j])
+	})
+}
+
+func (s *State) addItem(i *Item) {
+	index := s.indexItem(i)
+
+	if index < len(s.Inventory) {
+		s.Inventory = append(s.Inventory[:index+1], s.Inventory[index:]...)
+		s.Inventory[index] = i
+	} else {
+		s.Inventory = append(s.Inventory[:index], i)
+	}
+}
+
+func (s *State) RemoveItem(i *Item) (ok bool) {
+	s.Lock()
+	ok = s.removeItem(i)
+	s.Unlock()
+	return
+}
+
+func (s *State) removeItem(i *Item) bool {
+	if i == nil {
 		return false
 	}
 
-	if s.Inventory == nil {
-		s.Inventory = make(map[Item]uint)
+	index := s.indexItem(i)
+
+	if index < len(s.Inventory) && s.Inventory[index] == i {
+		s.Inventory = append(s.Inventory[:index], s.Inventory[index+1:]...)
+
+		return true
 	}
 
-	if delta < 0 && current == uint(-delta) {
-		delete(s.Inventory, i)
-	} else {
-		s.Inventory[i] = uint(int(s.Inventory[i]) + delta)
-	}
-
-	return true
-}
-
-func (s *State) GetItemCount(i Item) (count uint) {
-	s.Lock()
-	count = s.Inventory[i]
-	s.Unlock()
-	return
-
+	return false
 }
