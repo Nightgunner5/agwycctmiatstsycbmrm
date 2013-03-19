@@ -39,8 +39,10 @@ type gameUI struct {
 
 func (g *gameUI) paint(w, h int) {
 	g.state.Lock()
-	for i, r := range []rune(fmt.Sprintf("Worker %d / %d", g.currentWorker+1, len(g.state.Workers))) {
-		termbox.SetCell(i, 1, r, termbox.ColorDefault|termbox.AttrBold, termbox.ColorDefault)
+	x := 0
+	for _, r := range fmt.Sprintf("Worker %d / %d", g.currentWorker+1, len(g.state.Workers)) {
+		termbox.SetCell(x, 1, r, termbox.ColorDefault|termbox.AttrBold, termbox.ColorDefault)
+		x++
 	}
 
 	worker := g.state.Workers[g.currentWorker]
@@ -48,21 +50,27 @@ func (g *gameUI) paint(w, h int) {
 	y := 3
 
 	termbox.SetCell(0, y, 'G', termbox.ColorWhite|termbox.AttrBold, termbox.ColorBlack)
-	for x, r := range []rune("give item") {
-		termbox.SetCell(x+2, y, r, termbox.ColorDefault, termbox.ColorDefault)
+	x = 2
+	for _, r := range "give item" {
+		termbox.SetCell(x, y, r, termbox.ColorDefault, termbox.ColorDefault)
+		x++
 	}
 	y++
 
 	termbox.SetCell(0, y, 'T', termbox.ColorWhite|termbox.AttrBold, termbox.ColorBlack)
-	for x, r := range []rune(fmt.Sprintf("current task: %s (%d%%)", worker.Task, worker.Progress/((1<<16-1)/100))) {
-		termbox.SetCell(x+2, y, r, termbox.ColorDefault, termbox.ColorDefault)
+	x = 2
+	for _, r := range fmt.Sprintf("current task: %s (%d%%)", worker.Task, worker.Progress/((1<<16-1)/100)) {
+		termbox.SetCell(x, y, r, termbox.ColorDefault, termbox.ColorDefault)
+		x++
 	}
 	y++
 
 	for _, i := range worker.Inventory {
 		y++
-		for x, r := range []rune(i.String()) {
+		x = 0
+		for _, r := range i.String() {
 			termbox.SetCell(x, y, r, termbox.ColorDefault, termbox.ColorDefault)
+			x++
 		}
 	}
 
@@ -74,12 +82,14 @@ func (g *gameUI) paint(w, h int) {
 	}
 	for _, i := range g.state.Inventory {
 		if y > 0 {
-			for x, r := range []rune(i.String()) {
+			x = w * 3 / 5
+			for _, r := range i.String() {
 				if y == gameHeight+1 {
-					termbox.SetCell(x+w*3/5, y, r, termbox.ColorDefault|termbox.AttrBold, termbox.ColorDefault)
+					termbox.SetCell(x, y, r, termbox.ColorDefault|termbox.AttrBold, termbox.ColorDefault)
 				} else {
-					termbox.SetCell(x+w*3/5, y, r, termbox.ColorDefault, termbox.ColorDefault)
+					termbox.SetCell(x, y, r, termbox.ColorDefault, termbox.ColorDefault)
 				}
+				x++
 			}
 		}
 		y++
