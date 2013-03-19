@@ -198,17 +198,13 @@ func (g *gameUI) key(k termbox.Key) {
 }
 
 func (g *gameUI) process() {
-	go g.advanceDate()
+	defer func() {
+		if r := recover(); r != nil {
+			termbox.Close()
+			panic(r)
+		}
+	}()
 
-	//g.state.IncrementScore(100000)
-	//repaint()
-
-	for {
-		time.Sleep(time.Second / 10)
-	}
-}
-
-func (g *gameUI) advanceDate() {
 	for {
 		g.state.AdvanceTime()
 		repaint()

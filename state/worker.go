@@ -9,6 +9,13 @@ type Task uint16
 const (
 	TaskNone Task = iota
 	TaskCombineItems
+	TaskMakePlanks
+	TaskMakeBlocks
+	TaskMakeSheets
+	TaskSmeltOres
+	TaskSmeltNuggets
+	TaskSpinThread
+	TaskWeaveCloth
 	NumTasks
 )
 
@@ -19,6 +26,27 @@ func (t Task) String() string {
 
 	case TaskCombineItems:
 		return "combine items"
+
+	case TaskMakePlanks:
+		return "make planks"
+
+	case TaskMakeBlocks:
+		return "make blocks"
+
+	case TaskMakeSheets:
+		return "make sheets"
+
+	case TaskSmeltOres:
+		return "smelt ores"
+
+	case TaskSmeltNuggets:
+		return "smelt nuggets"
+
+	case TaskSpinThread:
+		return "spin thread"
+
+	case TaskWeaveCloth:
+		return "weave cloth"
 	}
 
 	return "ERROR"
@@ -59,15 +87,168 @@ func (t Task) complete(w *Worker, s *State) {
 			}
 		}
 
-		// give all items back to the supply pile
-		for _, item := range w.Inventory {
-			s.addItem(item)
-		}
-		w.Inventory = nil
+	case TaskMakePlanks:
+		for i, ii := range w.Inventory {
+			if ii.Category&0x000fff00 != Log {
+				continue
+			}
 
-		// TODO: log task failure
-		w.Task = TaskNone
+			ii = ii.Clone()
+			ii.Category = ii.Category&0xfff000ff | Plank
+			// TODO: adjust quality (and size?)
+			w.Inventory[i] = ii
+
+			s.incrementScore(uint64(ii.Quality)>>4 + 1)
+
+			// TODO: log task success
+
+			for _, item := range w.Inventory[:i] {
+				s.addItem(item)
+			}
+			w.Inventory = w.Inventory[i:]
+			return
+		}
+
+	case TaskMakeBlocks:
+		for i, ii := range w.Inventory {
+			if ii.Category&0x000fff00 != Log && ii.Category&0x000fff00 != Ingot {
+				continue
+			}
+
+			ii = ii.Clone()
+			ii.Category = ii.Category&0xfff000ff | Block
+			// TODO: adjust quality (and size?)
+			w.Inventory[i] = ii
+
+			s.incrementScore(uint64(ii.Quality)>>4 + 1)
+
+			// TODO: log task success
+
+			for _, item := range w.Inventory[:i] {
+				s.addItem(item)
+			}
+			w.Inventory = w.Inventory[i:]
+			return
+		}
+
+	case TaskMakeSheets:
+		for i, ii := range w.Inventory {
+			if ii.Category&0x000fff00 != Log && ii.Category&0x000fff00 != Plank && ii.Category&0x000fff00 != Ingot {
+				continue
+			}
+
+			ii = ii.Clone()
+			ii.Category = ii.Category&0xfff000ff | Sheet
+			// TODO: adjust quality (and size?)
+			w.Inventory[i] = ii
+
+			s.incrementScore(uint64(ii.Quality)>>4 + 1)
+
+			// TODO: log task success
+
+			for _, item := range w.Inventory[:i] {
+				s.addItem(item)
+			}
+			w.Inventory = w.Inventory[i:]
+			return
+		}
+
+	case TaskSmeltOres:
+		for i, ii := range w.Inventory {
+			if ii.Category&0x000fff00 != Ore {
+				continue
+			}
+
+			ii = ii.Clone()
+			ii.Category = ii.Category&0xfff000ff | Ingot
+			// TODO: adjust quality (and size?)
+			w.Inventory[i] = ii
+
+			s.incrementScore(uint64(ii.Quality)>>4 + 1)
+
+			// TODO: log task success
+
+			for _, item := range w.Inventory[:i] {
+				s.addItem(item)
+			}
+			w.Inventory = w.Inventory[i:]
+			return
+		}
+
+	case TaskSmeltNuggets:
+		for i, ii := range w.Inventory {
+			if ii.Category&0x000fff00 != Nugget {
+				continue
+			}
+
+			ii = ii.Clone()
+			ii.Category = ii.Category&0xfff000ff | Ingot
+			// TODO: adjust quality (and size?)
+			w.Inventory[i] = ii
+
+			s.incrementScore(uint64(ii.Quality)>>4 + 1)
+
+			// TODO: log task success
+
+			for _, item := range w.Inventory[:i] {
+				s.addItem(item)
+			}
+			w.Inventory = w.Inventory[i:]
+			return
+		}
+
+	case TaskSpinThread:
+		for i, ii := range w.Inventory {
+			if ii.Category&0xffffff00 != Wool {
+				continue
+			}
+
+			ii = ii.Clone()
+			ii.Category = ii.Category | Thread
+			// TODO: adjust quality (and size?)
+			w.Inventory[i] = ii
+
+			s.incrementScore(uint64(ii.Quality)>>4 + 1)
+
+			// TODO: log task success
+
+			for _, item := range w.Inventory[:i] {
+				s.addItem(item)
+			}
+			w.Inventory = w.Inventory[i:]
+			return
+		}
+
+	case TaskWeaveCloth:
+		for i, ii := range w.Inventory {
+			if ii.Category&0x000fff00 != Thread {
+				continue
+			}
+
+			ii = ii.Clone()
+			ii.Category = ii.Category&0xfff000ff | Cloth
+			// TODO: adjust quality (and size?)
+			w.Inventory[i] = ii
+
+			s.incrementScore(uint64(ii.Quality)>>4 + 1)
+
+			// TODO: log task success
+
+			for _, item := range w.Inventory[:i] {
+				s.addItem(item)
+			}
+			w.Inventory = w.Inventory[i:]
+			return
+		}
 	}
+	// give all items back to the supply pile
+	for _, item := range w.Inventory {
+		s.addItem(item)
+	}
+	w.Inventory = nil
+
+	// TODO: log task failure
+	w.Task = TaskNone
 }
 
 type Worker struct {
