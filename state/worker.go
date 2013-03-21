@@ -260,7 +260,7 @@ type Worker struct {
 func (w *Worker) advanceDay(current uint64, s *State) {
 }
 
-func (w *Worker) advanceDayPercent(s *State) {
+func (w *Worker) advanceTime(s *State) {
 	if w.Progress == ^uint16(0) {
 		w.Progress = 0
 		w.Task.complete(w, s)

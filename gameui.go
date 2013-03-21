@@ -219,7 +219,7 @@ func (g *gameUI) process() {
 		g.state.AdvanceTime()
 		repaint()
 
-		time.Sleep(g.state.DayLength / 100)
+		time.Sleep(time.Second / 25)
 	}
 }
 

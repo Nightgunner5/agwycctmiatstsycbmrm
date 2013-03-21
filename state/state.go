@@ -39,7 +39,7 @@ func itemLeq(i, j *Item) bool {
 type State struct {
 	DayLength   time.Duration
 	Day         uint64
-	DayProgress uint8
+	DayProgress time.Duration
 	Cash        uint64
 	Score       uint64
 	Workers     []*Worker
@@ -181,13 +181,13 @@ func (s *State) GetScore() (score uint64) {
 func (s *State) AdvanceTime() {
 	s.Lock()
 
-	s.DayProgress++
+	s.DayProgress += time.Second / 25
 
 	for _, w := range s.Workers {
-		w.advanceDayPercent(s)
+		w.advanceTime(s)
 	}
 
-	if s.DayProgress >= 100 {
+	if s.DayProgress >= s.DayLength {
 		s.DayProgress = 0
 		s.Day++
 
