@@ -44,6 +44,18 @@ func (g *gameUI) paint(w, h int) {
 		termbox.SetCell(x, 1, r, termbox.ColorDefault|termbox.AttrBold, termbox.ColorDefault)
 		x++
 	}
+	idle := 0
+	for _, w := range g.state.Workers {
+		if w.Task == state.TaskNone {
+			idle++
+		}
+	}
+	if idle > 0 {
+		for _, r := range fmt.Sprintf(" (%d idle)", idle) {
+			termbox.SetCell(x, 1, r, termbox.ColorDefault, termbox.ColorDefault)
+			x++
+		}
+	}
 
 	worker := g.state.Workers[g.currentWorker]
 
